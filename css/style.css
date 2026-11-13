@@ -1,0 +1,12 @@
+*{box-sizing:border-box}body{margin:0;font-family:Georgia,serif;color:#222;background:#fffaf3}
+header{display:flex;justify-content:space-between;align-items:center;padding:18px 40px;background:#1f3d36;color:#fff}
+header nav a{color:#fff;margin-left:20px;text-decoration:none}
+.hero{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center;padding:60px 40px}
+.hero h1{font-size:46px;margin:0 0 12px}.hero p{font-size:19px;color:#555}
+.hero img{width:100%;border-radius:12px}
+.btn{display:inline-block;background:#e07a3a;color:#fff;padding:12px 22px;border-radius:30px;text-decoration:none;margin-top:14px}
+.servicios{padding:50px 40px;background:#f1e9dc}.servicios h2{text-align:center;margin-top:0}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.item{background:#fff;padding:24px;border-radius:12px}
+footer{padding:30px 40px;text-align:center;background:#1f3d36;color:#cfe}
+@media(max-width:700px){.hero,.grid{grid-template-columns:1fr}}

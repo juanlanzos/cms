@@ -1,0 +1,4 @@
+# Los archivos internos del CMS no se abren desde el navegador
+<FilesMatch "^(lib|config)\.php$">
+  Require all denied
+</FilesMatch>

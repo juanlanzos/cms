@@ -127,10 +127,10 @@ function cms_update_apply(?string $sha = null): array
 {
     if (!class_exists('ZipArchive')) throw new RuntimeException('Este hosting no tiene la extensión zip de PHP');
     $c = cms_update_conf();
-    if ($sha === null || !preg_match('/^[0-9a-f]{40}$/', $sha)) {
-        $info = cms_update_check();
-        $sha  = $info['latest']['sha'];
-        $meta = $info['latest'];
+    $latest = cms_update_check()['latest'];
+    if ($sha === null || !preg_match('/^[0-9a-f]{40}$/', $sha) || $sha === $latest['sha']) {
+        $sha  = $latest['sha'];
+        $meta = $latest;
     } else {
         $meta = ['sha' => $sha, 'date' => '', 'message' => ''];
     }

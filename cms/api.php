@@ -55,15 +55,21 @@ switch ($action) {
 
     case 'page':
         pagina_ok($page);
-        out(true, ['schema' => cms_schema($page), 'content' => cms_content($page)]);
+        $sc = cms_schema($page);
+        out(true, ['schema' => $sc, 'content' => cms_content($page), 'lists' => cms_list_defaults($page, $sc)]);
 
     /* el admin principal define que se edita */
     case 'save_schema':
         solo_super($isSuper);
         pagina_ok($page);
         $limpio = [];
+        /* solo partes que existen de verdad en la pagina */
+        $existen = [];
+        $dom = cms_load($page);
+        if ($dom) cms_walk($dom['body'], '', function ($el, $k) use (&$existen) { $existen[$k] = 1; });
         foreach ((array) ($in['schema'] ?? []) as $k => $s) {
-            if (!preg_match('/^\d+(\.\d+)*$/', (string) $k) || !is_array($s)) continue;
+            if (!isset($existen[(string) $k])) continue;
+            if (!preg_match('/^\d+(\.\d+)*$/', (string) $k) || !is_array($s)) continue; /* sin "@": se configura el molde */
             $type = (string) ($s['type'] ?? '');
             $ok   = cms_props_for($type);
             if (!$ok) continue;
@@ -78,23 +84,13 @@ switch ($action) {
         }
         cms_write_json(cms_data('schema') . '/' . cms_fname($page) . '.json', $limpio);
         cms_publish($page, $user['username']);
-        out(true, ['schema' => $limpio]);
+        out(true, ['schema' => $limpio, 'lists' => cms_list_defaults($page, $limpio)]);
 
     /* el admin de contenidos (o el principal) guarda valores */
     case 'save_content':
         pagina_ok($page);
-        $schema = cms_schema($page);
-        $limpio = [];
-        foreach ((array) ($in['content'] ?? []) as $k => $vals) {
-            $s = $schema[(string) $k] ?? null;
-            if (!$s || !is_array($vals)) continue;
-            foreach ($vals as $prop => $v) {
-                if (!in_array($prop, $s['props'], true)) continue;
-                $c = cms_clean_value((string) $prop, $v);
-                if ($c === null) out(false, 'Valor no válido en "' . (cms_catalog()[$prop]['label'] ?? $prop) . '"', 422);
-                $limpio[(string) $k][$prop] = $c;
-            }
-        }
+        [$limpio, $err] = cms_clean_content((array) ($in['content'] ?? []), cms_schema($page));
+        if ($err !== '') out(false, $err, 422);
         cms_write_json(cms_data('content') . '/' . cms_fname($page) . '.json', $limpio);
         cms_publish($page, $user['username']);
         out(true, ['content' => $limpio]);

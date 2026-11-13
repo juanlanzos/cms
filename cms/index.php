@@ -54,7 +54,7 @@ $e = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>CMS · <?= $e(cms_config()['site_name']) ?></title>
-<link rel="stylesheet" href="assets/admin.css?v=1">
+<link rel="stylesheet" href="assets/admin.css?v=2">
 </head>
 <body>
 <?php if (!$user): ?>
@@ -102,18 +102,22 @@ $e = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
         </div>
         <button class="btn" id="btnUsers">Usuarios</button>
       <?php endif; ?>
+      <div class="seg" id="devSeg" title="Cómo se ve">
+        <button data-dev="d" class="on">🖥 Compu</button>
+        <button data-dev="m">📱 Celular</button>
+      </div>
       <span class="spacer"></span>
       <a class="btn" id="btnView" target="_blank" rel="noopener">Ver sitio ↗</a>
       <span class="who"><?= $e($user['username']) ?> · <?= $e(CMS_ROLES[$user['role']]) ?></span>
       <form method="post"><input type="hidden" name="csrf" value="<?= $e($csrf) ?>"><button class="btn" name="action" value="logout">Salir</button></form>
     </header>
     <main class="work">
-      <div class="stage"><iframe id="frame" title="Página"></iframe></div>
+      <div class="stage"><iframe id="frame" name="frame" title="Página"></iframe></div>
       <aside class="side" id="side"></aside>
     </main>
     <div class="toast" id="toast"></div>
   </div>
-  <script src="assets/admin.js?v=1"></script>
+  <script src="assets/admin.js?v=2"></script>
 <?php endif; ?>
 </body>
 </html>

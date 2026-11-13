@@ -235,8 +235,16 @@ function cms_catalog(): array
         'margen'       => ['label' => 'Espacio por fuera (margin)',  'kind' => 'box'],
         'relleno'      => ['label' => 'Espacio por dentro (padding)', 'kind' => 'box'],
         'visible'      => ['label' => 'Mostrar en la página', 'kind' => 'toggle'],
+        'lista'        => ['label' => 'Lista de bloques (agregar, borrar y ordenar lo de adentro)', 'kind' => 'list'],
     ];
 }
+
+/** Propiedades de estilo: son las unicas que pueden ser distintas en celular. */
+const CMS_STYLE_PROPS = ['color', 'fondo', 'fondo_imagen', 'tamano_letra', 'peso', 'alineacion', 'ancho', 'alto',
+                         'filtro', 'opacidad', 'redondeo', 'margen', 'relleno', 'visible'];
+
+/** Ancho a partir del cual se considera "celular". */
+const CMS_MOBILE_MAX = 767;
 
 /** Que propiedades tienen sentido para cada tipo de parte. */
 function cms_props_for(string $type): array
@@ -245,7 +253,7 @@ function cms_props_for(string $type): array
         'texto'  => ['texto', 'color', 'tamano_letra', 'peso', 'alineacion', 'fondo', 'margen', 'relleno', 'visible'],
         'enlace' => ['texto', 'enlace', 'color', 'fondo', 'tamano_letra', 'peso', 'redondeo', 'relleno', 'margen', 'visible'],
         'imagen' => ['imagen', 'alt', 'ancho', 'alto', 'filtro', 'redondeo', 'opacidad', 'margen', 'relleno', 'visible'],
-        'bloque' => ['fondo', 'fondo_imagen', 'relleno', 'margen', 'alineacion', 'redondeo', 'opacidad', 'visible'],
+        'bloque' => ['lista', 'fondo', 'fondo_imagen', 'relleno', 'margen', 'alineacion', 'redondeo', 'opacidad', 'visible'],
     ][$type] ?? [];
 }
 
@@ -299,6 +307,8 @@ function cms_clean_value(string $prop, $v)
             return $o;
         case 'toggle':
             return (bool) $v;
+        case 'list':
+            return null;
     }
     return null;
 }
@@ -401,39 +411,162 @@ function cms_schema(string $page): array  { return cms_read_json(cms_data('schem
 function cms_content(string $page): array { return cms_read_json(cms_data('content') . '/' . cms_fname($page) . '.json', []); }
 
 /**
+ * Direccion "de molde" de una parte. Las copias de un bloque se llaman como el
+ * original mas "@id": "2.0.1@k3f" es la parte 2.0.1 dentro de la copia k3f.
+ * La configuracion del admin principal es una sola para el original y sus copias.
+ */
+function cms_base_key(string $k): string { return (string) preg_replace('/@.*$/', '', $k); }
+
+const CMS_KEY_RE = '/^\d+(\.\d+)*(@[a-z0-9]{1,12})?$/';
+
+/** Los hijos "de verdad" de un elemento, con el mismo numero que les da cms_walk. */
+function cms_children(DOMElement $el): array
+{
+    $out = [];
+    $i = 0;
+    foreach ($el->childNodes as $n) {
+        if (!($n instanceof DOMElement)) continue;
+        if (!isset(cms_blind()[strtolower($n->tagName)])) $out[$i] = $n;
+        $i++;
+    }
+    return $out;
+}
+
+/** Elementos de la lista tal como vienen en el molde: uno por hijo. */
+function cms_list_defaults(string $page, array $schema): array
+{
+    $out = [];
+    $lists = array_keys(array_filter($schema, fn($s) => in_array('lista', (array) ($s['props'] ?? []), true)));
+    if (!$lists) return $out;
+    $dom = cms_load($page);
+    if (!$dom) return $out;
+    cms_walk($dom['body'], '', function (DOMElement $el, string $k) use (&$out, $lists) {
+        if (!in_array($k, $lists, true)) return;
+        $out[$k] = [];
+        foreach (array_keys(cms_children($el)) as $i) $out[$k][] = ['src' => $i, 'id' => ''];
+    });
+    return $out;
+}
+
+/**
+ * Limpia todo lo que manda el panel antes de guardarlo o de mostrarlo.
+ * Devuelve [contenido limpio, error o ''].
+ */
+function cms_clean_content(array $raw, array $schema): array
+{
+    $cat = cms_catalog();
+    $out = [];
+    foreach ($raw as $k => $vals) {
+        $k = (string) $k;
+        if (!preg_match(CMS_KEY_RE, $k) || !is_array($vals)) continue;
+        $s = $schema[cms_base_key($k)] ?? null;
+        if (!$s) continue;
+        $props = (array) $s['props'];
+        foreach ($vals as $prop => $v) {
+            $prop = (string) $prop;
+            if ($prop === '@m') {
+                if (!is_array($v)) continue;
+                foreach ($v as $mp => $mv) {
+                    if (!in_array($mp, $props, true) || !in_array($mp, CMS_STYLE_PROPS, true)) continue;
+                    $c = cms_clean_value((string) $mp, $mv);
+                    if ($c === null) return [[], 'Valor no válido en "' . $cat[$mp]['label'] . '" (celular)'];
+                    $out[$k]['@m'][$mp] = $c;
+                }
+                continue;
+            }
+            if ($prop === '_items') {
+                if (!in_array('lista', $props, true) || str_contains($k, '@') || !is_array($v)) continue;
+                $items = [];
+                $vistos = [];
+                foreach (array_slice($v, 0, 200) as $it) {
+                    if (!is_array($it)) continue;
+                    $src = (int) ($it['src'] ?? -1);
+                    $id  = (string) ($it['id'] ?? '');
+                    if ($src < 0 || $src > 5000) continue;
+                    if ($id !== '' && !preg_match('/^[a-z0-9]{1,12}$/', $id)) continue;
+                    $marca = $id === '' ? 'o' . $src : $id;
+                    if (isset($vistos[$marca])) continue;
+                    $vistos[$marca] = 1;
+                    $items[] = ['src' => $src, 'id' => $id];
+                }
+                $out[$k]['_items'] = $items;
+                continue;
+            }
+            if (!in_array($prop, $props, true) || $prop === 'lista') continue;
+            $c = cms_clean_value($prop, $v);
+            if ($c === null) return [[], 'Valor no válido en "' . ($cat[$prop]['label'] ?? $prop) . '"'];
+            $out[$k][$prop] = $c;
+        }
+    }
+    return [$out, ''];
+}
+
+/**
  * Arma el HTML de una pagina.
  *   $mode = 'live'   -> lo que ve el publico
  *           'super'  -> vista del admin principal (todo se puede marcar)
  *           'editor' -> vista del admin de contenidos (solo lo habilitado)
+ * $content permite mostrar cambios todavia sin guardar (vista previa).
  */
-function cms_render(string $page, string $mode = 'live'): string
+function cms_render(string $page, string $mode = 'live', ?array $content = null): string
 {
     $dom = cms_load($page);
     if (!$dom) return '';
     $schema  = cms_schema($page);
-    $content = cms_content($page);
+    $content = $content ?? cms_content($page);
     $doc     = $dom['doc'];
+    $xp      = new DOMXPath($doc);
 
-    cms_walk($dom['body'], '', function (DOMElement $el, string $k) use ($schema, $content, $mode, $doc) {
-        $s = $schema[$k] ?? null;
-        if ($s && !empty($content[$k])) {
-            /* solo se aplica lo que el admin principal habilito */
-            $vals = array_intersect_key($content[$k], array_flip((array) ($s['props'] ?? [])));
-            /* en la vista previa se recuerda el estilo de fabrica, para que
-               el panel pueda "deshacer" un valor sin recargar */
-            if ($mode !== 'live') $el->setAttribute('data-cms-s0', (string) $el->getAttribute('style'));
-            cms_apply($el, $vals, $doc);
-        }
+    /* 1. cada elemento recibe su direccion de molde */
+    cms_walk($dom['body'], '', fn(DOMElement $el, string $k) => $el->setAttribute('data-cms-p', $k));
+
+    /* 2. listas: se reordenan, duplican o borran los bloques de adentro */
+    foreach ($schema as $k => $s) {
+        if (!in_array('lista', (array) $s['props'], true)) continue;
+        $el = $xp->query('//*[@data-cms-p="' . $k . '"]')->item(0);
+        if (!($el instanceof DOMElement)) continue;
+        $items = $content[$k]['_items'] ?? null;
+        cms_apply_list($el, (string) $k, is_array($items) ? $items : null, $mode !== 'live');
+    }
+
+    /* 3. valores de cada parte */
+    $css = ['d' => [], 'm' => []];
+    foreach (iterator_to_array($xp->query('//*[@data-cms-p]')) as $el) {
+        /** @var DOMElement $el */
+        $k = $el->getAttribute('data-cms-p');
+        $el->removeAttribute('data-cms-p');
+        $s = $schema[cms_base_key($k)] ?? null;
+        $v = $s ? ($content[$k] ?? []) : [];
+        $props = $s ? array_flip((array) $s['props']) : [];
+        $dv = array_intersect_key($v, $props);
+        $mv = is_array($v['@m'] ?? null) ? array_intersect_key($v['@m'], $props) : [];
+
+        if ($dv) cms_apply_dom($el, $dv, $doc);
+        $dcss = cms_css($dv);
+        $mcss = cms_css($mv, isset($dv['visible']) && $dv['visible'] === false);
+        $sel = '[data-cms-k="' . $k . '"]';
+        if ($dcss !== '') $css['d'][] = $sel . '{' . $dcss . '}';
+        if ($mcss !== '') $css['m'][] = $sel . '{' . $mcss . '}';
+
+        $marcar = $mode === 'super' || ($mode === 'editor' && $s) || $dcss !== '' || $mcss !== '';
+        if ($marcar) $el->setAttribute('data-cms-k', $k);
         if ($mode === 'super') {
-            $el->setAttribute('data-cms-k', $k);
             $el->setAttribute('data-cms-t', cms_type($el));
             if ($s) $el->setAttribute('data-cms-on', '1');
         } elseif ($mode === 'editor' && $s) {
-            $el->setAttribute('data-cms-k', $k);
             $el->setAttribute('data-cms-t', (string) ($s['type'] ?? cms_type($el)));
             $el->setAttribute('data-cms-on', '1');
         }
-    });
+    }
+
+    $hoja = implode("\n", $css['d']);
+    if ($css['m']) $hoja .= "\n@media (max-width: " . CMS_MOBILE_MAX . "px) {\n" . implode("\n", $css['m']) . "\n}";
+    if ($dom['head'] && ($hoja !== '' || $mode !== 'live')) {
+        $st = $doc->createElement('style');
+        $st->setAttribute('id', 'cms-css');
+        $st->appendChild($doc->createTextNode("\n" . $hoja . "\n"));
+        $dom['head']->appendChild($st);
+    }
 
     if ($mode !== 'live') {
         /* la vista previa vive en /cms/preview.php: con <base> las rutas
@@ -444,28 +577,70 @@ function cms_render(string $page, string $mode = 'live'): string
             $b = $doc->createElement('base');
             $b->setAttribute('href', $base);
             $dom['head']->insertBefore($b, $dom['head']->firstChild);
-            $css = $doc->createElement('link');
-            $css->setAttribute('rel', 'stylesheet');
-            $css->setAttribute('href', cms_site_url() . 'cms/assets/frame.css?v=1');
-            $dom['head']->appendChild($css);
+            $l = $doc->createElement('link');
+            $l->setAttribute('rel', 'stylesheet');
+            $l->setAttribute('href', cms_site_url() . 'cms/assets/frame.css?v=2');
+            $dom['head']->appendChild($l);
         }
         $js = $doc->createElement('script');
-        $js->setAttribute('src', cms_site_url() . 'cms/assets/frame.js?v=1');
+        $js->setAttribute('src', cms_site_url() . 'cms/assets/frame.js?v=2');
         $js->setAttribute('data-mode', $mode);
         $dom['body']->appendChild($js);
     }
     return cms_save_dom($dom);
 }
 
-/** Aplica los valores guardados a un elemento. */
-function cms_apply(DOMElement $el, array $v, DOMDocument $doc): void
+/** Reordena / duplica / borra los bloques de una lista. */
+function cms_apply_list(DOMElement $list, string $k, ?array $items, bool $marcar): void
+{
+    $kids = cms_children($list);
+    if ($items === null) {
+        $items = [];
+        foreach (array_keys($kids) as $i) $items[] = ['src' => $i, 'id' => ''];
+    }
+    $usados = [];
+    $nuevos = [];
+    foreach ($items as $it) {
+        $src = (int) ($it['src'] ?? -1);
+        $id  = (string) ($it['id'] ?? '');
+        if (!isset($kids[$src])) continue;
+        if ($id === '' && !isset($usados[$src])) {
+            $usados[$src] = 1;
+            $nodo = $kids[$src];
+        } else {
+            if ($id === '') continue;
+            $nodo = $kids[$src]->cloneNode(true);
+            /* la copia y todo lo de adentro llevan el sufijo de la copia */
+            $todos = array_merge([$nodo], iterator_to_array($nodo->getElementsByTagName('*')));
+            foreach ($todos as $e) {
+                if ($e->hasAttribute('data-cms-p')) $e->setAttribute('data-cms-p', $e->getAttribute('data-cms-p') . '@' . $id);
+                if ($e->hasAttribute('id')) $e->removeAttribute('id'); /* no repetir ids del HTML */
+            }
+        }
+        $nuevos[] = $nodo;
+    }
+    /* sale todo lo que habia (sin tocar scripts ni comentarios) y entra la lista nueva */
+    foreach ($kids as $n) if ($n->parentNode === $list) $list->removeChild($n);
+    $ref = null;
+    foreach ($list->childNodes as $n) { if ($n instanceof DOMElement) { $ref = $n; break; } }
+    foreach ($nuevos as $pos => $n) {
+        if ($marcar) {
+            $n->setAttribute('data-cms-list', $k);
+            $n->setAttribute('data-cms-item', (string) $pos);
+        }
+        $list->insertBefore($n, $ref);
+        $list->insertBefore($list->ownerDocument->createTextNode("\n"), $ref);
+    }
+}
+
+/** Cambios que no son de estilo: texto, link, imagen y descripcion. */
+function cms_apply_dom(DOMElement $el, array $v, DOMDocument $doc): void
 {
     $tag = strtolower($el->tagName);
 
     if (isset($v['texto']) && $v['texto'] !== '' && $tag !== 'img') {
         while ($el->firstChild) $el->removeChild($el->firstChild);
-        $lines = explode("\n", (string) $v['texto']);
-        foreach ($lines as $i => $line) {
+        foreach (explode("\n", (string) $v['texto']) as $i => $line) {
             if ($i > 0) $el->appendChild($doc->createElement('br'));
             $el->appendChild($doc->createTextNode($line));
         }
@@ -481,37 +656,42 @@ function cms_apply(DOMElement $el, array $v, DOMDocument $doc): void
         }
     }
     if (isset($v['alt']) && $v['alt'] !== '' && $tag === 'img') $el->setAttribute('alt', (string) $v['alt']);
-
-    $css = cms_css($v);
-    if ($css !== '') {
-        $prev = rtrim(trim((string) $el->getAttribute('style')), ';');
-        $el->setAttribute('style', ($prev !== '' ? $prev . '; ' : '') . $css);
-    }
 }
 
-/** Traduce los valores de estilo a CSS en linea. */
-function cms_css(array $v): string
+/**
+ * Traduce los valores de estilo a CSS. Va con !important para ganarle a la
+ * hoja de estilos del sitio. $ocultoEnCompu: si en compu esta oculto y en
+ * celular se pide mostrar, hay que "des-ocultarlo".
+ */
+function cms_css(array $v, bool $ocultoEnCompu = false): string
 {
     $c = [];
-    if (!empty($v['color']))        $c[] = 'color: ' . $v['color'];
-    if (!empty($v['fondo']))        $c[] = 'background-color: ' . $v['fondo'];
-    if (!empty($v['fondo_imagen'])) $c[] = "background-image: url('" . str_replace(["'", '"', ')', '('], '', (string) $v['fondo_imagen']) . "'); background-size: cover; background-position: center";
-    if (($v['tamano_letra'] ?? '') !== '') $c[] = 'font-size: ' . (float) $v['tamano_letra'] . 'px';
-    if (!empty($v['peso']))         $c[] = 'font-weight: ' . $v['peso'];
-    if (!empty($v['alineacion']))   $c[] = 'text-align: ' . $v['alineacion'];
-    if (!empty($v['ancho']))        $c[] = 'width: ' . $v['ancho'];
-    if (!empty($v['alto']))         $c[] = 'height: ' . $v['alto'] . '; object-fit: cover';
-    if (!empty($v['filtro']))       $c[] = 'filter: ' . $v['filtro'];
-    if (($v['opacidad'] ?? '') !== '') $c[] = 'opacity: ' . ((float) $v['opacidad'] / 100);
-    if (($v['redondeo'] ?? '') !== '') $c[] = 'border-radius: ' . (float) $v['redondeo'] . 'px';
+    if (!empty($v['color']))        $c[] = 'color:' . $v['color'];
+    if (!empty($v['fondo']))        $c[] = 'background-color:' . $v['fondo'];
+    if (!empty($v['fondo_imagen'])) {
+        $c[] = "background-image:url('" . str_replace(["'", '"', ')', '(', '\\', '<', '>'], '', (string) $v['fondo_imagen']) . "')";
+        $c[] = 'background-size:cover';
+        $c[] = 'background-position:center';
+    }
+    if (($v['tamano_letra'] ?? '') !== '') $c[] = 'font-size:' . (float) $v['tamano_letra'] . 'px';
+    if (!empty($v['peso']))         $c[] = 'font-weight:' . $v['peso'];
+    if (!empty($v['alineacion']))   $c[] = 'text-align:' . $v['alineacion'];
+    if (!empty($v['ancho']))        $c[] = 'width:' . $v['ancho'];
+    if (!empty($v['alto']))         { $c[] = 'height:' . $v['alto']; $c[] = 'object-fit:cover'; }
+    if (!empty($v['filtro']))       $c[] = 'filter:' . $v['filtro'];
+    if (($v['opacidad'] ?? '') !== '') $c[] = 'opacity:' . ((float) $v['opacidad'] / 100);
+    if (($v['redondeo'] ?? '') !== '') $c[] = 'border-radius:' . (float) $v['redondeo'] . 'px';
     foreach (['margen' => 'margin', 'relleno' => 'padding'] as $p => $css) {
         if (!is_array($v[$p] ?? null)) continue;
         foreach (['t' => 'top', 'r' => 'right', 'b' => 'bottom', 'l' => 'left'] as $s => $side) {
-            if (($v[$p][$s] ?? '') !== '') $c[] = $css . '-' . $side . ': ' . (int) $v[$p][$s] . 'px';
+            if (($v[$p][$s] ?? '') !== '') $c[] = $css . '-' . $side . ':' . (int) $v[$p][$s] . 'px';
         }
     }
-    if (array_key_exists('visible', $v) && $v['visible'] === false) $c[] = 'display: none !important';
-    return implode('; ', $c);
+    if (array_key_exists('visible', $v)) {
+        if ($v['visible'] === false) $c[] = 'display:none';
+        elseif ($ocultoEnCompu) $c[] = 'display:revert';
+    }
+    return $c ? implode(' !important;', $c) . ' !important' : '';
 }
 
 /* ───────────────────────── publicar ───────────────────────── */

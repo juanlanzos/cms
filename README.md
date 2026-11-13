@@ -43,10 +43,15 @@ Ojo: si la estructura de la página cambió mucho, conviene revisar las partes h
 
 `index.html`, `nosotros.html`, `css/` e `img/` son un sitio de prueba ("Café La Esquina") para ver el sistema andando. En `docs/capturas/` hay fotos de cómo se ve.
 
+## Novedades v0.2
+
+- **Listas de bloques**: el admin principal marca un contenedor (por ejemplo, la grilla de tarjetas) como "Lista de bloques". El admin de contenidos puede **duplicar, borrar y ordenar** las tarjetas. Lo que el principal habilita dentro de una tarjeta (el título, la foto) se aplica igual a todas.
+- **Celular y compu**: arriba hay un botón 🖥 Compu / 📱 Celular. En modo celular, los colores, tamaños, espacios y "mostrar/ocultar" que se cambien valen solo para celular (pantallas de hasta 767px). Los textos y fotos son los mismos en los dos.
+- **Vista previa real**: los cambios se ven tal cual van a quedar antes de tocar "Guardar y publicar".
+
 ## Lo que todavía no hace (próximos pasos)
 
-- Agregar, duplicar o mover bloques (por ahora se edita lo que ya existe).
-- Vista celular/tablet con valores distintos por pantalla.
+- Agregar bloques nuevos desde una biblioteca (por ahora se duplica uno que ya existe).
 - Volver a una versión anterior desde el panel (las copias ya se guardan).
 - Editar textos con negritas/links adentro (hoy el texto se reemplaza como texto simple).
 - Tipografías, sombras, bordes y animaciones.

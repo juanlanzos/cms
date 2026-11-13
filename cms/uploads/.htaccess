@@ -1,0 +1,5 @@
+# Las fotos se ven, pero nada se ejecuta como codigo
+RemoveHandler .php .phtml .php5 .phar
+<FilesMatch "\.(php|phtml|phar|php5)$">
+  Require all denied
+</FilesMatch>

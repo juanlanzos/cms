@@ -1,0 +1,7 @@
+/* Marcas del editor dentro de la pagina. Solo se cargan en la vista previa. */
+.cms-ed [data-cms-k] { cursor: pointer; }
+.cms-ed-super [data-cms-k]:hover { outline: 1px dashed rgba(37, 99, 235, .7); outline-offset: 2px; }
+.cms-ed [data-cms-on] { outline: 2px solid rgba(16, 185, 129, .55); outline-offset: 2px; }
+.cms-ed-editor [data-cms-on]:hover { outline: 2px solid #10b981; }
+.cms-ed [data-cms-sel] { outline: 3px solid #2563eb !important; outline-offset: 3px; }
+.cms-ed-editor [data-cms-k]:not([data-cms-on]) { cursor: default; }

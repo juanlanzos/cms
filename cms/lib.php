@@ -579,11 +579,11 @@ function cms_render(string $page, string $mode = 'live', ?array $content = null)
             $dom['head']->insertBefore($b, $dom['head']->firstChild);
             $l = $doc->createElement('link');
             $l->setAttribute('rel', 'stylesheet');
-            $l->setAttribute('href', cms_site_url() . 'cms/assets/frame.css?v=2');
+            $l->setAttribute('href', cms_site_url() . 'cms/assets/frame.css?v=3');
             $dom['head']->appendChild($l);
         }
         $js = $doc->createElement('script');
-        $js->setAttribute('src', cms_site_url() . 'cms/assets/frame.js?v=2');
+        $js->setAttribute('src', cms_site_url() . 'cms/assets/frame.js?v=3');
         $js->setAttribute('data-mode', $mode);
         $dom['body']->appendChild($js);
     }

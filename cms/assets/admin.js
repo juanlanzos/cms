@@ -188,6 +188,17 @@
     else render();
   });
 
+  /* ver la pagina limpia, sin recuadros de edicion */
+  var btnClean = document.getElementById('btnClean');
+  function setClean(on) {
+    S.clean = on;
+    btnClean.classList.toggle('on', on);
+    btnClean.textContent = on ? '✏️ Mostrar marcas' : '👁 Ocultar marcas';
+    document.querySelector('.work').classList.toggle('clean', on);
+    tell({ cmd: 'clean', on: on });
+  }
+  btnClean.addEventListener('click', function () { setClean(!S.clean); });
+
   var btnUsers = document.getElementById('btnUsers');
   if (btnUsers) btnUsers.addEventListener('click', function () { S.view = S.view === 'users' ? 'main' : 'users'; render(); });
 
@@ -195,6 +206,7 @@
 
   window.addEventListener('message', function (e) {
     if (e.origin !== location.origin || !e.data || !e.data.cms) return;
+    if (e.data.type === 'ready' && S.clean) tell({ cmd: 'clean', on: true });
     if (e.data.type === 'ready' && S.reselect) {
       tell({ cmd: 'select', k: S.reselect, tell: true, scroll: true });
       S.reselect = null;

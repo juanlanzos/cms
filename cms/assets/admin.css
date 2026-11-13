@@ -67,3 +67,5 @@ code{font-size:12px;background:#eef0f4;padding:1px 5px;border-radius:4px}
 .itembtns{display:flex;gap:4px;flex-wrap:wrap}
 .itemrow{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:6px 0;border-top:1px solid var(--line)}
 .btn.danger{color:var(--red)}
+.btn.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.work.clean .side{display:none}

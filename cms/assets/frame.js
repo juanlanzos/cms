@@ -13,6 +13,7 @@
   var MOBILE_MAX = 767;
   var selected = null;
   var originals = {};
+  var clean = false;
 
   document.documentElement.classList.add('cms-ed', 'cms-ed-' + mode);
 
@@ -91,6 +92,12 @@
   }
 
   document.addEventListener('click', function (e) {
+    if (clean) {
+      /* sin marcas la pagina funciona normal, pero los links no sacan al marco */
+      var a = e.target.closest ? e.target.closest('a[href]') : null;
+      if (a && !/^#/.test(a.getAttribute('href'))) e.preventDefault();
+      return;
+    }
     if (e.altKey) return; /* con Alt la pagina funciona normal (pestañas, menus) */
     e.preventDefault();
     e.stopPropagation();
@@ -210,6 +217,11 @@
     var d = e.data;
     if (d.cmd === 'apply') { apply(d.k, d.vals); restyle(d.content, d.schema); }
     if (d.cmd === 'restyle') restyle(d.content, d.schema);
+    if (d.cmd === 'clean') {
+      clean = !!d.on;
+      document.documentElement.classList.toggle('cms-ed', !clean);
+      if (selected) { if (clean) selected.removeAttribute('data-cms-sel'); else selected.setAttribute('data-cms-sel', '1'); }
+    }
     if (d.cmd === 'select') {
       var el = d.k ? byK(d.k) : null;
       select(el, !!d.tell);

@@ -54,7 +54,7 @@ $e = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>CMS · <?= $e(cms_config()['site_name']) ?></title>
-<link rel="stylesheet" href="assets/admin.css?v=2">
+<link rel="stylesheet" href="assets/admin.css?v=3">
 </head>
 <body>
 <?php if (!$user): ?>
@@ -106,6 +106,7 @@ $e = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
         <button data-dev="d" class="on">🖥 Compu</button>
         <button data-dev="m">📱 Celular</button>
       </div>
+      <button class="btn" id="btnClean" title="Muestra la página como la ve un visitante, sin los recuadros de edición">👁 Ocultar marcas</button>
       <span class="spacer"></span>
       <a class="btn" id="btnView" target="_blank" rel="noopener">Ver sitio ↗</a>
       <span class="who"><?= $e($user['username']) ?> · <?= $e(CMS_ROLES[$user['role']]) ?></span>
@@ -117,7 +118,7 @@ $e = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
     </main>
     <div class="toast" id="toast"></div>
   </div>
-  <script src="assets/admin.js?v=2"></script>
+  <script src="assets/admin.js?v=3"></script>
 <?php endif; ?>
 </body>
 </html>

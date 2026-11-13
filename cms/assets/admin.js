@@ -105,7 +105,7 @@
 
   function boot() {
     api('state').then(function (d) {
-      S.user = d.user; S.catalog = d.catalog; S.types = d.types; S.site = d.site;
+      S.user = d.user; S.catalog = d.catalog; S.types = d.types; S.site = d.site; S.version = d.version;
       S.mode = d.user.role === 'super' ? 'super' : 'editor';
       fillPages(d.pages);
     }).catch(function (e) { toast(e.message, true); });
@@ -198,6 +198,29 @@
     tell({ cmd: 'clean', on: on });
   }
   btnClean.addEventListener('click', function () { setClean(!S.clean); });
+
+  /* actualizar el codigo del CMS desde GitHub */
+  var btnUpdate = document.getElementById('btnUpdate');
+  function corto(v) { return v && v.sha ? v.sha.slice(0, 7) : 'desconocida'; }
+  if (btnUpdate) btnUpdate.addEventListener('click', function () {
+    btnUpdate.disabled = true;
+    toast('Buscando actualizaciones…');
+    api('update_check').then(function (r) {
+      if (!r.available) { toast('Ya tenés la última versión ✔ (' + corto(r.current) + ')'); return; }
+      var msg = 'Hay una versión nueva del CMS:\n\n' + (r.latest.message || corto(r.latest)) +
+        '\n\nTenés: ' + corto(r.current) + '  →  Nueva: ' + corto(r.latest) +
+        '\n\nNo se tocan los contenidos, usuarios ni fotos, y queda copia del código viejo.\n¿Actualizar ahora?';
+      if (!confirm(msg)) return;
+      if (S.dirty && !confirm('Hay cambios sin guardar que se van a perder. ¿Seguir igual?')) return;
+      toast('Actualizando…');
+      return api('update_apply', { sha: r.latest.sha }).then(function (u) {
+        toast('Actualizado ✔ (' + u.changed.length + ' archivos). Recargando…');
+        S.dirty = false;
+        setTimeout(function () { location.reload(); }, 1500);
+      });
+    }).catch(function (e) { toast(e.message, true); })
+      .then(function () { btnUpdate.disabled = false; });
+  });
 
   var btnUsers = document.getElementById('btnUsers');
   if (btnUsers) btnUsers.addEventListener('click', function () { S.view = S.view === 'users' ? 'main' : 'users'; render(); });
@@ -644,6 +667,13 @@
           .then(function () { toast('Usuario creado ✔'); render(); })
           .catch(function (e) { toast(e.message, true); });
       } } }, ['Crear'])
+    ]));
+    var v = S.version || {};
+    side.appendChild(h('div', { class: 'card' }, [
+      h('h4', { text: 'Instalar en otro sitio' }),
+      h('p', { class: 'muted', text: 'Bajá un solo archivo (instalar.php), subilo a la carpeta del index.html del otro sitio y abrilo en el navegador.' }),
+      h('a', { class: 'btn', href: 'installer/descargar.php' }, ['⬇ Descargar instalador']),
+      h('p', { class: 'muted', text: 'Versión instalada acá: ' + (v.sha ? v.sha.slice(0, 7) + (v.message ? ' · ' + v.message : '') : 'sin dato (tocá ⟳ Actualizar)') })
     ]));
     side.appendChild(h('button', { class: 'btn', on: { click: function () { S.view = 'main'; render(); } } }, ['← Volver al editor']));
   }

@@ -47,6 +47,7 @@ switch ($action) {
             'types'   => $types,
             'site'    => cms_site_url(),
             'name'    => cms_config()['site_name'],
+            'version' => cms_read_json(cms_data() . '/version.json', ['sha' => '', 'date' => '', 'message' => '']),
         ]);
 
     case 'scan':
@@ -127,6 +128,20 @@ switch ($action) {
         $u[$n] = ['hash' => password_hash($p, PASSWORD_DEFAULT), 'role' => $r];
         cms_save_users($u);
         out(true);
+
+    /* actualizar el codigo del CMS desde GitHub (solo admin principal) */
+    case 'update_check':
+        solo_super($isSuper);
+        require_once __DIR__ . '/updater.php';
+        try { out(true, cms_update_check()); }
+        catch (Throwable $e) { out(false, $e->getMessage(), 502); }
+
+    case 'update_apply':
+        solo_super($isSuper);
+        require_once __DIR__ . '/updater.php';
+        @set_time_limit(180);
+        try { out(true, cms_update_apply(isset($in['sha']) ? (string) $in['sha'] : null)); }
+        catch (Throwable $e) { out(false, $e->getMessage(), 502); }
 
     case 'delete_user':
         solo_super($isSuper);

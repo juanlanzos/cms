@@ -36,7 +36,8 @@ function cms_config(): array
     if ($c === null) {
         $f = __DIR__ . '/config.php';
         $c = is_file($f) ? (array) require $f : [];
-        $c += ['setup_code' => '', 'site_name' => 'Mi sitio'];
+        $c += ['setup_code' => '', 'site_name' => 'Mi sitio',
+            'update_repo' => 'juanlanzos/cms', 'update_branch' => 'main', 'update_token' => ''];
     }
     return $c;
 }

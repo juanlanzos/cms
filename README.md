@@ -14,14 +14,26 @@ Un panel tipo "Elementor simple" para cualquier sitio hecho en HTML, **sin WordP
 
 Al publicar, el sistema arma el HTML final (molde + cambios) y lo escribe encima del `.html` real. Antes guarda una copia de seguridad.
 
-## Cómo instalarlo en un cliente
+## Cómo instalarlo en un cliente (forma fácil)
 
-1. Subí la carpeta `cms/` a la misma carpeta donde está el `index.html` del cliente.
-2. Abrí `cms/config.php` y escribí una clave cualquiera en `setup_code` (y el nombre del sitio).
-3. Entrá a `https://sitio-del-cliente.com/cms/`, poné esa clave y creá tu usuario (admin principal).
-4. El primer escaneo se hace solo. Desde **Usuarios** creás el usuario del cliente como "Admin de contenidos".
+1. Entrá al panel de cualquier sitio que ya tenga el CMS (por ejemplo cms.habi.ar), andá a **Usuarios** y tocá **⬇ Descargar instalador**. Baja un solo archivo: `instalar.php`.
+   (También se puede armar desde la terminal: `php cms/installer/build.php > instalar.php`.)
+2. Subí `instalar.php` a la carpeta donde está el `index.html` del cliente (FTP o administrador de archivos del hosting).
+3. Abrí `https://sitio-del-cliente.com/instalar.php`, poné el nombre del sitio, tu usuario y tu contraseña, y tocá **Instalar**.
+4. Listo: se crea la carpeta `cms/`, tu usuario de admin principal, se escanean las páginas y el instalador se borra solo. Desde **Usuarios** creás el usuario del cliente como "Admin de contenidos".
 
-Requisitos: hosting con PHP 8 y Apache (los `.htaccess` protegen la carpeta `cms/data`). Con Nginx hay que bloquear `cms/data` a mano.
+Requisitos: hosting con PHP 8. Con Apache la carpeta `cms/data` queda protegida sola (`.htaccess`). Con Nginx el instalador avisa si hay que agregar el bloqueo a mano.
+
+La forma manual (copiar la carpeta `cms/` y poner una clave en `setup_code` de `cms/config.php`) sigue funcionando.
+
+## Actualizar el código (botón ⟳ Actualizar)
+
+El admin principal tiene un botón **⟳ Actualizar** arriba. Busca en GitHub la última versión del CMS y, si hay una nueva, la instala:
+
+- Reemplaza **solo el código** de `cms/`. **Nunca toca** los contenidos, usuarios, moldes (`cms/data/`), las fotos (`cms/uploads/`) ni `cms/config.php`.
+- Antes guarda una copia del código viejo en `cms/data/backups/codigo-<fecha>/`.
+- De dónde baja se configura en `cms/config.php`: `update_repo` (ej. `juanlanzos/cms`) y `update_branch` (normalmente `main`).
+- Si el repositorio es **privado**, hace falta `update_token`: un token de GitHub de **solo lectura** para ese repo. Se escribe en el `config.php` del servidor, nunca se manda por chat.
 
 ## Dónde queda cada cosa
 
